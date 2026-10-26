@@ -1,0 +1,24 @@
+name: rozvoz_app_v2
+description: Rozvoz Zámecká - appka pro rozvozce
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  geolocator: ^13.0.2
+  url_launcher: ^6.3.0
+  http: ^1.2.0
+  shared_preferences: ^2.3.0
+  pdf: ^3.11.0
+  printing: ^5.13.0
+  web: ^1.1.0
+
+flutter:
+  uses-material-design: true
