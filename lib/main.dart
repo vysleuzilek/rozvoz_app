@@ -14,6 +14,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
+import 'live_share.dart';
 
 // Appka je určená pro okolí Chlumce nad Cidlinou -- vše mimo tento rádius
 // appka odmítne, ať tě nenavede daleko od domovské oblasti.
@@ -870,7 +871,10 @@ class RozvozkaApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: Colors.orange,
       ),
-      home: const OrdersScreen(),
+      // Restaurace otevírá appku na adrese s ?restaurace na konci
+      home: Uri.base.queryParameters.containsKey('restaurace')
+          ? const RestaurantScreen()
+          : const OrdersScreen(),
     );
   }
 }
@@ -1701,6 +1705,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
   void dispose() {
     _camAnim.dispose();
     _positionStream?.cancel();
+    unawaited(LiveShare.leaveDelivery());
     super.dispose();
   }
 
@@ -1778,6 +1783,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
           'Nepodařilo se získat polohu ($e). Trasa se zobrazí od Chlumce.');
     }
     await _computeRoute();
+    _shareLive();
 
     _positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
@@ -1795,6 +1801,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         _speedKmh = pos.speed > 0 ? pos.speed * 3.6 : 0;
         _updateLiveRouteProgress();
       });
+      _shareLive();
       if (_followMe) {
         final distToDest = Geolocator.distanceBetween(
           _myLocation.latitude,
@@ -1818,6 +1825,21 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         _computeRoute(silent: true);
       }
     });
+  }
+
+  // Sdílení polohy s restaurací (dělá něco jen když je zapnuté v Nastavení).
+  void _shareLive() {
+    unawaited(LiveShare.pushPosition(
+      pos: _myLocation,
+      heading: _heading,
+      speedKmh: _speedKmh,
+      address: widget.order.address,
+      destLat: widget.order.lat,
+      destLon: widget.order.lon,
+      distanceKm: _distanceKm,
+      etaMin: _durationMin,
+      route: _displayRoutePoints.isNotEmpty ? _displayRoutePoints : _routePoints,
+    ));
   }
 
   Future<void> _computeRoute({bool silent = false}) async {
@@ -1951,6 +1973,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
       orders[idx] = updated;
       await OrdersStore.save(orders);
     }
+    unawaited(LiveShare.markDelivered());
     if (mounted) Navigator.pop(context);
   }
 
@@ -2879,6 +2902,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _trackCashCardTips,
             onChanged: _save,
           ),
+          const LiveShareSettingsSection(),
           const _BackupSection(),
         ],
       ),
