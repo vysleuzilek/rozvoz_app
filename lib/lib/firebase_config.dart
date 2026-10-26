@@ -1,6 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 
-// ===================== NASTAVENÍ FIREBASE =====================
+// ===================== NASTAVENÍ FIREBASE ====================
 // Hodnoty z Firebase konzole (projekt rozvozka-7aecc, webová appka).
 const String _rawConfig = r'''
 {
