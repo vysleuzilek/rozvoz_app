@@ -205,12 +205,14 @@ class LiveShare {
       final statusChange = _status != 'driving';
       if (!statusChange && !routeDue && _lastPush != null) {
         final since = now.difference(_lastPush!);
-        if (since < const Duration(seconds: 5)) return;
+        // max. 1x za vteřinu (800 ms rezerva na kolísání GPS)
+        if (since < const Duration(milliseconds: 800)) return;
         final moved = _lastPushPos == null
             ? 999.0
             : Geolocator.distanceBetween(_lastPushPos!.latitude,
                 _lastPushPos!.longitude, pos.latitude, pos.longitude);
-        if (moved < 8 && since < const Duration(seconds: 20)) return;
+        // když stojíš na místě, stačí zápis jednou za 10 s (šetří limit Firestore)
+        if (moved < 3 && since < const Duration(seconds: 10)) return;
       }
       _pushing = true;
       try {
