@@ -34258,13 +34258,13 @@ k=$.zH!=="driving"
 if(!k&&!l&&$.WC!=null){e=$.WC
 e.toString
 j=m.fw(e)
-if(j.a<5e6){s=1
+if(j.a<8e5){s=1
 break}e=$.b1n
 if(e==null)d=999
 else{c=e.a
 e=e.b
 d=$.xu().vG(c,e,a7.a,a7.b)}i=d
-if(i<8&&j.a<2e7){s=1
+if(i<3&&j.a<1e7){s=1
 break}}$.aVx=!0
 p=8
 s=11
