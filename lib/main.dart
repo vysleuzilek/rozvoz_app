@@ -991,7 +991,6 @@ class _EditOrderSheetState extends State<_EditOrderSheet> {
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Dýško na ruku (Kč)',
-                  helperText: 'Hotově navíc, mimo online platbu / terminál',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -1136,9 +1135,9 @@ class _Tokens {
 
 const _Tokens _orangeLight = _Tokens(
   bg: Color(0xFFF5F4F1), card: Color(0xFFFFFFFF), text: Color(0xFF1C1B19),
-  muted: Color(0xFF6B665F), acc: Color(0xFFC2410C), onAcc: Color(0xFFFFFFFF),
+  muted: Color(0xFF6B665F), acc: Color(0xFFFB923C), onAcc: Color(0xFF1C1B19),
   soft: Color(0xFFFDEBDD), chipText: Color(0xFF7C2D12), border: Color(0xFFE7E3DC),
-  inp: Color(0xFFF5F4F1), route: Color(0xFFC2410C),
+  inp: Color(0xFFF5F4F1), route: Color(0xFFFB923C),
 );
 const _Tokens _orangeDark = _Tokens(
   bg: Color(0xFF121110), card: Color(0xFF1D1B19), text: Color(0xFFF3F0EB),
@@ -1160,7 +1159,7 @@ const _Tokens _indigoDark = _Tokens(
 );
 const _Tokens _warmLight = _Tokens(
   bg: Color(0xFFF7F3EC), card: Color(0xFFFFFFFF), text: Color(0xFF1F1A14),
-  muted: Color(0xFF6D6458), acc: Color(0xFFC2410C), onAcc: Color(0xFFFFFFFF),
+  muted: Color(0xFF6D6458), acc: Color(0xFFFB923C), onAcc: Color(0xFF1F1A14),
   soft: Color(0xFFFBE7D6), chipText: Color(0xFF7C2D12), border: Color(0xFFE9E1D4),
   inp: Color(0xFFF7F3EC), route: Color(0xFF4338CA),
 );
@@ -1590,10 +1589,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
     if (s.entries.isEmpty) {
       headline = 'Z tohohle čísla zatím žádné dýško (${s.orders} objednávek)';
     } else {
-      final avg = s.total / s.entries.length;
-      headline = 'Dýška z tohohle čísla: ${s.entries.length}× z ${s.known} '
-          'objednávek · celkem ${s.total.toStringAsFixed(0)} Kč '
-          '(Ø ${avg.toStringAsFixed(0)} Kč)';
+      final n = s.entries.length;
+      final word = n == 1 ? 'objednávka' : (n >= 2 && n <= 4 ? 'objednávky' : 'objednávek');
+      headline = '$n $word s dýškem, celkem ${s.total.toStringAsFixed(0)},-';
     }
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -1639,7 +1637,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${e.amount.toStringAsFixed(0)} Kč · ${_fmtShortDate(e.when)}',
+                        '${e.amount.toStringAsFixed(0)},- · ${_fmtShortDate(e.when)}',
                         style: const TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w600),
                       ),
@@ -1707,15 +1705,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
     setState(() => _trackCashCardTips = value);
     final settings = await AppSettingsStore.load();
     settings['trackCashCardTips'] = value;
-    await AppSettingsStore.save(settings);
-  }
-
-  Future<void> _toggleTheme() async {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final mode = dark ? ThemeMode.light : ThemeMode.dark;
-    appThemeMode.value = mode;
-    final settings = await AppSettingsStore.load();
-    settings['themeMode'] = mode == ThemeMode.dark ? 'dark' : 'light';
     await AppSettingsStore.save(settings);
   }
 
@@ -2138,48 +2127,26 @@ class _OrdersScreenState extends State<OrdersScreen> {
       ..sort((a, b) => b.completedAt!.compareTo(a.completedAt!));
   }
 
-  String _orderSubtitle(DeliveryOrder o) {
-    if (o.prePaid) {
-      final tipPart =
-          o.tip > 0 ? ' + ${o.tip.toStringAsFixed(0)} Kč dýško' : '';
-      return '${o.phone} · ${o.amount.toStringAsFixed(0)} Kč online$tipPart';
-    } else {
-      final total = o.amount + o.deliveryFee;
-      final feePart = o.deliveryFee > 0
-          ? ' (z toho doprava ${o.deliveryFee.toStringAsFixed(0)} Kč)'
-          : '';
-      return '${o.phone} · vybrat ${total.toStringAsFixed(0)} Kč$feePart';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final knownPhones = _phonesForAddress(_addressController.text);
     final tipSummary = _tipSummaryForPhone(_phoneController.text);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dnes'),
-        actions: [
-          _barButton(Icons.bar_chart, 'Statistiky', () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const StatsScreen()),
-            );
-            _loadOrders();
-          }),
-          _barButton(Icons.receipt_long_outlined, 'Vyúčtování směny', () async {
+        automaticallyImplyLeading: false,
+        leadingWidth: 62,
+        leading: Align(
+          alignment: Alignment.centerLeft,
+          child: _barButton(Icons.receipt_long_outlined, 'Vyúčtování směny',
+              () async {
             await Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const ShiftSettlementScreen()),
             );
           }),
-          _barButton(
-            isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-            isDark ? 'Světlý režim' : 'Tmavý režim',
-            _toggleTheme,
-          ),
+        ),
+        actions: [
           _barButton(Icons.settings_outlined, 'Nastavení', () async {
             final changed = await Navigator.push<bool>(
               context,
@@ -2191,33 +2158,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
             );
             if (changed == true) _loadSettings();
           }),
+          _barButton(Icons.bar_chart, 'Statistiky', () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const StatsScreen()),
+            );
+            _loadOrders();
+          }),
           const SizedBox(width: 12),
         ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: (_loading || _pending.isEmpty)
-          ? null
-          : Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: FilledButton.icon(
-                  onPressed: () => _openDelivery(_pending.first),
-                  icon: const Icon(Icons.navigation_outlined),
-                  label: const Text('Navigovat k další objednávce'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: cs.onSurface,
-                    foregroundColor: cs.surface,
-                    shape: const StadiumBorder(),
-                  ),
-                ),
-              ),
-            ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
               children: [
                 _todayStrip(cs),
                 _sectionLabel('Nová objednávka'),
@@ -2231,8 +2185,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           controller: _addressController,
                           decoration: InputDecoration(
                             labelText: 'Adresa',
-                            helperText: 'Napiš adresu nebo název místa '
-                                '(např. dřívější firmu)',
                             prefixIcon: const Icon(Icons.location_on_outlined),
                             border: const OutlineInputBorder(),
                             suffixIcon: _addressController.text.isNotEmpty
@@ -2294,7 +2246,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           controller: _placeLabelController,
                           decoration: const InputDecoration(
                             labelText: 'Název místa (nepovinné)',
-                            helperText: 'Např. název firmy - příště podle něj najdeš adresu',
                             prefixIcon: Icon(Icons.label_outline),
                             border: OutlineInputBorder(),
                           ),
@@ -2367,7 +2318,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     decimal: true),
                             decoration: const InputDecoration(
                               labelText: 'Dýško (Kč)',
-                              helperText: 'Dýško, které přišlo s online platbou',
                               prefixIcon:
                                   Icon(Icons.volunteer_activism_outlined),
                               border: OutlineInputBorder(),
@@ -2381,7 +2331,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     decimal: true),
                             decoration: const InputDecoration(
                               labelText: 'Doprava (Kč)',
-                              helperText: 'Kolik navíc vybrat za dopravu',
                               prefixIcon: Icon(Icons.local_shipping_outlined),
                               border: OutlineInputBorder(),
                             ),
@@ -3096,7 +3045,6 @@ class _DeliveryScreenState extends State<DeliveryScreen>
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
                       labelText: 'Kolik vybráno (Kč)',
-                      helperText: 'U karty částka, která je na terminálu',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -3617,7 +3565,6 @@ class _StatsScreenState extends State<StatsScreen> {
   List<DeliveryOrder> _orders = [];
   bool _loading = true;
   bool _trackCashCardTips = false;
-  bool _exportingPdf = false;
 
   // --- kilometry ---
   Map<String, double> _kmByOrder = {};
@@ -3695,215 +3642,6 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   String _fmtDay(DateTime d) => '${d.day}. ${d.month}. ${d.year}';
-
-  // Sestaví PDF přesně ve stylu papírového rozpisu, co appka nahrazuje -
-  // číslovaný seznam objednávek + vyhodnocení dne dole, stejný systém
-  // sčítání/odečítání jako ve Vyúčtování směny.
-  Future<void> _exportPdf() async {
-    setState(() => _exportingPdf = true);
-    try {
-      final now = DateTime.now();
-      final doneOrders =
-          _orders.where((o) => o.done && o.completedAt != null).toList();
-      final todayOrders = doneOrders
-          .where((o) => _isToday(o.completedAt!))
-          .toList()
-        ..sort((a, b) => a.completedAt!.compareTo(b.completedAt!));
-
-      final revenue = todayOrders.fold<double>(0, (s, o) => s + o.amount);
-      final online = todayOrders
-          .where((o) => o.prePaid)
-          .fold<double>(0, (s, o) => s + o.amount);
-      final onlineTips = todayOrders
-          .where((o) => o.prePaid)
-          .fold<double>(0, (s, o) => s + o.tip);
-      final delivery = todayOrders
-          .where((o) => !o.prePaid && !o.bossDelivered)
-          .fold<double>(0, (s, o) => s + o.deliveryFee);
-      final bossAmount = todayOrders
-          .where((o) => o.bossDelivered)
-          .fold<double>(0, (s, o) => s + o.amount);
-      final cardAmount = todayOrders
-          .where((o) => !o.prePaid && o.paidByCard)
-          .fold<double>(
-              0, (s, o) => s + o.amount + o.deliveryFee + o.cashCardTip);
-
-      final saved = await ShiftSettlementStore.load();
-      final stravenky = double.tryParse(
-              ((saved?['stravenky'] ?? '') as String).replaceAll(',', '.')) ??
-          0;
-      final platby = double.tryParse(
-              ((saved?['platby'] ?? '') as String).replaceAll(',', '.')) ??
-          0;
-
-      final result = revenue -
-          cardAmount -
-          online -
-          onlineTips -
-          stravenky -
-          platby -
-          bossAmount +
-          delivery;
-
-      final regularFont = await PdfGoogleFonts.notoSansRegular();
-      final boldFont = await PdfGoogleFonts.notoSansBold();
-      final doc = pw.Document(
-        theme: pw.ThemeData.withFont(
-          base: regularFont,
-          bold: boldFont,
-        ),
-      );
-      doc.addPage(
-        pw.MultiPage(
-          build: (context) => [
-            pw.Text('Vyúčtování směny',
-                style:
-                    pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-            pw.Text(_fmtDay(now),
-                style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
-            pw.SizedBox(height: 14),
-            pw.Table(
-              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-              columnWidths: const {
-                0: pw.FlexColumnWidth(0.6),
-                1: pw.FlexColumnWidth(2.6),
-                2: pw.FlexColumnWidth(1.2),
-                3: pw.FlexColumnWidth(1.2),
-                4: pw.FlexColumnWidth(1.4),
-              },
-              children: [
-                pw.TableRow(
-                  decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-                  children: [
-                    _pdfCell('Č.', bold: true),
-                    _pdfCell('Adresa', bold: true),
-                    _pdfCell('Částka (Kč)', bold: true),
-                    _pdfCell('Doprava (Kč)', bold: true),
-                    _pdfCell('Dýško online (Kč)', bold: true),
-                  ],
-                ),
-                for (int i = 0; i < todayOrders.length; i++)
-                  _pdfOrderRow(i + 1, todayOrders[i]),
-              ],
-            ),
-            pw.SizedBox(height: 8),
-            pw.Row(children: [
-              _pdfLegendDot(PdfColor.fromInt(0xFFC8F7C5)),
-              pw.SizedBox(width: 4),
-              pw.Text('zaplaceno online', style: const pw.TextStyle(fontSize: 9)),
-              pw.SizedBox(width: 14),
-              _pdfLegendDot(PdfColor.fromInt(0xFF64B5F6)),
-              pw.SizedBox(width: 4),
-              pw.Text('jel šéf', style: const pw.TextStyle(fontSize: 9)),
-            ]),
-            pw.SizedBox(height: 20),
-            pw.Divider(),
-            pw.SizedBox(height: 8),
-            pw.Text('Vyhodnocení dne',
-                style:
-                    pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 8),
-            _pdfSummaryRow('Tržba', revenue),
-            _pdfSummaryRow('Karty', cardAmount),
-            _pdfSummaryRow('Online platby', online),
-            _pdfSummaryRow('Dýška z online', onlineTips),
-            _pdfSummaryRow('Stravenky', stravenky),
-            _pdfSummaryRow('Platby/výdaje', platby),
-            _pdfSummaryRow('Jel šéf (bez dopravy)', bossAmount),
-            _pdfSummaryRow('Doprava', delivery),
-            pw.SizedBox(height: 6),
-            pw.Divider(),
-            pw.SizedBox(height: 4),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Dát šéfovi',
-                    style: pw.TextStyle(
-                        fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                pw.Text('${result.toStringAsFixed(0)} Kč',
-                    style: pw.TextStyle(
-                        fontSize: 16, fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-          ],
-        ),
-      );
-
-      final filename =
-          'smena_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}.pdf';
-      await Printing.layoutPdf(
-        name: filename,
-        onLayout: (PdfPageFormat format) async => doc.save(),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export PDF selhal: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _exportingPdf = false);
-    }
-  }
-
-  pw.TableRow _pdfOrderRow(int index, DeliveryOrder o) {
-    PdfColor? bg;
-    if (o.bossDelivered) {
-      bg = PdfColor.fromInt(0xFF64B5F6); // tmavší modrá, ale černý text čitelný
-    } else if (o.prePaid) {
-      bg = PdfColor.fromInt(0xFFC8F7C5); // světle zelená
-    }
-    return pw.TableRow(
-      decoration: bg != null ? pw.BoxDecoration(color: bg) : null,
-      children: [
-        _pdfCell('$index'),
-        _pdfCell(o.address),
-        _pdfCell(o.amount.toStringAsFixed(0)),
-        _pdfCell(!o.bossDelivered && o.deliveryFee > 0
-            ? o.deliveryFee.toStringAsFixed(0)
-            : ''),
-        _pdfCell(
-            o.prePaid && o.tip > 0 ? o.tip.toStringAsFixed(0) : ''),
-      ],
-    );
-  }
-
-  pw.Widget _pdfCell(String text, {bool bold = false}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.all(4),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: 9,
-          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: PdfColors.black,
-        ),
-      ),
-    );
-  }
-
-  pw.Widget _pdfSummaryRow(String label, double value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(label, style: const pw.TextStyle(fontSize: 11)),
-          pw.Text('${value.toStringAsFixed(0)} Kč',
-              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _pdfLegendDot(PdfColor color) {
-    return pw.Container(
-      width: 10,
-      height: 10,
-      decoration:
-          pw.BoxDecoration(color: color, borderRadius: pw.BorderRadius.circular(2)),
-    );
-  }
 
   bool _inRange(DateTime d) {
     final r = _range;
@@ -4230,19 +3968,6 @@ class _StatsScreenState extends State<StatsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Statistiky'),
-        actions: [
-          IconButton(
-            icon: _exportingPdf
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.picture_as_pdf_outlined),
-            tooltip: 'Export do PDF',
-            onPressed: _exportingPdf ? null : _exportPdf,
-          ),
-        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -5086,6 +4811,11 @@ class _ShiftSettlementScreenState extends State<ShiftSettlementScreen> {
   final _stravenkyController = TextEditingController();
   final _platbyController = TextEditingController();
 
+  List<DeliveryOrder> _orders = [];
+  bool _exportingPdf = false;
+
+  String _fmtDay(DateTime d) => '${d.day}. ${d.month}. ${d.year}';
+
   @override
   void initState() {
     super.initState();
@@ -5139,6 +4869,7 @@ class _ShiftSettlementScreenState extends State<ShiftSettlementScreen> {
     final saved = await ShiftSettlementStore.load();
 
     setState(() {
+      _orders = orders;
       _trackCashCardTips = settings['trackCashCardTips'] as bool? ?? false;
       _todayRevenue = revenue;
       _todayOnline = online;
@@ -5153,6 +4884,216 @@ class _ShiftSettlementScreenState extends State<ShiftSettlementScreen> {
       }
       _loading = false;
     });
+  }
+
+  // Sestaví PDF přesně ve stylu papírového rozpisu, co appka nahrazuje -
+  // číslovaný seznam objednávek + vyhodnocení dne dole, stejný systém
+  // sčítání/odečítání jako ve Vyúčtování směny.
+  Future<void> _exportPdf() async {
+    setState(() => _exportingPdf = true);
+    try {
+      await _persist(); // ať se do PDF dostanou právě zadané stravenky a platby
+      final now = DateTime.now();
+      final doneOrders =
+          _orders.where((o) => o.done && o.completedAt != null).toList();
+      final todayOrders = doneOrders
+          .where((o) => _isToday(o.completedAt!))
+          .toList()
+        ..sort((a, b) => a.completedAt!.compareTo(b.completedAt!));
+
+      final revenue = todayOrders.fold<double>(0, (s, o) => s + o.amount);
+      final online = todayOrders
+          .where((o) => o.prePaid)
+          .fold<double>(0, (s, o) => s + o.amount);
+      final onlineTips = todayOrders
+          .where((o) => o.prePaid)
+          .fold<double>(0, (s, o) => s + o.tip);
+      final delivery = todayOrders
+          .where((o) => !o.prePaid && !o.bossDelivered)
+          .fold<double>(0, (s, o) => s + o.deliveryFee);
+      final bossAmount = todayOrders
+          .where((o) => o.bossDelivered)
+          .fold<double>(0, (s, o) => s + o.amount);
+      final cardAmount = todayOrders
+          .where((o) => !o.prePaid && o.paidByCard)
+          .fold<double>(
+              0, (s, o) => s + o.amount + o.deliveryFee + o.cashCardTip);
+
+      final saved = await ShiftSettlementStore.load();
+      final stravenky = double.tryParse(
+              ((saved?['stravenky'] ?? '') as String).replaceAll(',', '.')) ??
+          0;
+      final platby = double.tryParse(
+              ((saved?['platby'] ?? '') as String).replaceAll(',', '.')) ??
+          0;
+
+      final result = revenue -
+          cardAmount -
+          online -
+          onlineTips -
+          stravenky -
+          platby -
+          bossAmount +
+          delivery;
+
+      final regularFont = await PdfGoogleFonts.notoSansRegular();
+      final boldFont = await PdfGoogleFonts.notoSansBold();
+      final doc = pw.Document(
+        theme: pw.ThemeData.withFont(
+          base: regularFont,
+          bold: boldFont,
+        ),
+      );
+      doc.addPage(
+        pw.MultiPage(
+          build: (context) => [
+            pw.Text('Vyúčtování směny',
+                style:
+                    pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+            pw.Text(_fmtDay(now),
+                style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+            pw.SizedBox(height: 14),
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+              columnWidths: const {
+                0: pw.FlexColumnWidth(0.6),
+                1: pw.FlexColumnWidth(2.6),
+                2: pw.FlexColumnWidth(1.2),
+                3: pw.FlexColumnWidth(1.2),
+                4: pw.FlexColumnWidth(1.4),
+              },
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                  children: [
+                    _pdfCell('Č.', bold: true),
+                    _pdfCell('Adresa', bold: true),
+                    _pdfCell('Částka (Kč)', bold: true),
+                    _pdfCell('Doprava (Kč)', bold: true),
+                    _pdfCell('Dýško online (Kč)', bold: true),
+                  ],
+                ),
+                for (int i = 0; i < todayOrders.length; i++)
+                  _pdfOrderRow(i + 1, todayOrders[i]),
+              ],
+            ),
+            pw.SizedBox(height: 8),
+            pw.Row(children: [
+              _pdfLegendDot(PdfColor.fromInt(0xFFC8F7C5)),
+              pw.SizedBox(width: 4),
+              pw.Text('zaplaceno online', style: const pw.TextStyle(fontSize: 9)),
+              pw.SizedBox(width: 14),
+              _pdfLegendDot(PdfColor.fromInt(0xFF64B5F6)),
+              pw.SizedBox(width: 4),
+              pw.Text('jel šéf', style: const pw.TextStyle(fontSize: 9)),
+            ]),
+            pw.SizedBox(height: 20),
+            pw.Divider(),
+            pw.SizedBox(height: 8),
+            pw.Text('Vyhodnocení dne',
+                style:
+                    pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 8),
+            _pdfSummaryRow('Tržba', revenue),
+            _pdfSummaryRow('Karty', cardAmount),
+            _pdfSummaryRow('Online platby', online),
+            _pdfSummaryRow('Dýška z online', onlineTips),
+            _pdfSummaryRow('Stravenky', stravenky),
+            _pdfSummaryRow('Platby/výdaje', platby),
+            _pdfSummaryRow('Jel šéf (bez dopravy)', bossAmount),
+            _pdfSummaryRow('Doprava', delivery),
+            pw.SizedBox(height: 6),
+            pw.Divider(),
+            pw.SizedBox(height: 4),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Dát šéfovi',
+                    style: pw.TextStyle(
+                        fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                pw.Text('${result.toStringAsFixed(0)} Kč',
+                    style: pw.TextStyle(
+                        fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      final filename =
+          'smena_${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}.pdf';
+      await Printing.layoutPdf(
+        name: filename,
+        onLayout: (PdfPageFormat format) async => doc.save(),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export PDF selhal: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exportingPdf = false);
+    }
+  }
+
+  pw.TableRow _pdfOrderRow(int index, DeliveryOrder o) {
+    PdfColor? bg;
+    if (o.bossDelivered) {
+      bg = PdfColor.fromInt(0xFF64B5F6); // tmavší modrá, ale černý text čitelný
+    } else if (o.prePaid) {
+      bg = PdfColor.fromInt(0xFFC8F7C5); // světle zelená
+    }
+    return pw.TableRow(
+      decoration: bg != null ? pw.BoxDecoration(color: bg) : null,
+      children: [
+        _pdfCell('$index'),
+        _pdfCell(o.address),
+        _pdfCell(o.amount.toStringAsFixed(0)),
+        _pdfCell(!o.bossDelivered && o.deliveryFee > 0
+            ? o.deliveryFee.toStringAsFixed(0)
+            : ''),
+        _pdfCell(
+            o.prePaid && o.tip > 0 ? o.tip.toStringAsFixed(0) : ''),
+      ],
+    );
+  }
+
+  pw.Widget _pdfCell(String text, {bool bold = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(4),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 9,
+          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          color: PdfColors.black,
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _pdfSummaryRow(String label, double value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(label, style: const pw.TextStyle(fontSize: 11)),
+          pw.Text('${value.toStringAsFixed(0)} Kč',
+              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _pdfLegendDot(PdfColor color) {
+    return pw.Container(
+      width: 10,
+      height: 10,
+      decoration:
+          pw.BoxDecoration(color: color, borderRadius: pw.BorderRadius.circular(2)),
+    );
   }
 
   double _num(TextEditingController c) =>
@@ -5180,7 +5121,23 @@ class _ShiftSettlementScreenState extends State<ShiftSettlementScreen> {
         _todayDelivery;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Vyúčtování směny')),
+      appBar: AppBar(
+        title: const Text('Vyúčtování směny'),
+        actions: [
+          IconButton(
+            icon: _exportingPdf
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'Export do PDF pro šéfa',
+            onPressed: _exportingPdf ? null : _exportPdf,
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
